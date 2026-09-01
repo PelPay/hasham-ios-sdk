@@ -48,6 +48,10 @@ internal final class WorkingKeyManager {
         return try block(plaintext)
     }
 
+    func hasKey(deviceId: String) -> Bool {
+        return keychainLoad(account: account(deviceId)) != nil
+    }
+
     func clear(deviceId: String) {
         keychainDelete(account: account(deviceId))
     }

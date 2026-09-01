@@ -278,6 +278,21 @@ public final class HashamMobile {
         }
     }
 
+    // MARK: - Device state
+
+    /// Returns the stable hardware-backed device identifier stored at enrollment.
+    /// Throws `HashamMobileError.notEnrolled` if the device has not yet completed enrollment.
+    public func deviceId() throws -> String {
+        return try storedDeviceId()
+    }
+
+    /// Returns `true` if this device has a stored working key (enrollment completed).
+    /// Call on app launch — if `false`, run `enroll()` first.
+    public func isEnrolled() -> Bool {
+        guard let id = try? storedDeviceId() else { return false }
+        return workingKeyManager.hasKey(deviceId: id)
+    }
+
     // MARK: - Private helpers
 
     private func storedDeviceId() throws -> String {
