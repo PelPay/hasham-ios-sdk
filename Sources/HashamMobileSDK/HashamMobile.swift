@@ -278,6 +278,25 @@ public final class HashamMobile {
         }
     }
 
+    // MARK: - Device signing
+
+    /// Produce a short-lived dual-signature for the IAM device-token exchange.
+    ///
+    /// Signs `device:{deviceId}:op:{signedAt}` with both the device RSA-2048 Keychain key
+    /// and the SDK EC P-256 Keychain key. Pass all three `SignResult` fields to your backend,
+    /// which forwards them to IAM's `POST /mobile/devices/:deviceId/token`.
+    ///
+    /// - Parameter signedAt: Unix timestamp in seconds. Defaults to the current time.
+    /// - Throws: `HashamMobileError.notEnrolled` if the device has not yet enrolled.
+    public func sign(signedAt: Int = Int(Date().timeIntervalSince1970)) throws -> SignResult {
+        let deviceId = try storedDeviceId()
+        return SignResult(
+            deviceSignature: try deviceKeyManager.signOperation(deviceId: deviceId, signedAt: signedAt),
+            sdkSignature:    try deviceKeyManager.signSdkOperation(deviceId: deviceId, signedAt: signedAt),
+            signedAt:        signedAt
+        )
+    }
+
     // MARK: - Device state
 
     /// Returns the stable hardware-backed device identifier stored at enrollment.

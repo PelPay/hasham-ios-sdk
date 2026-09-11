@@ -158,6 +158,54 @@ internal final class DeviceKeyManager {
         return spkiDerToPem(ecPointToSpkiDer(point))
     }
 
+    /// Signs `device:{deviceId}:op:{signedAt}` with the SDK EC P-256 Keychain key and returns
+    /// a compact JWS (ES256). IAM's POST /mobile/devices/:deviceId/token verifies this to
+    /// prove the genuine Hasham SDK binary was present at the time of the operation.
+    func signSdkOperation(deviceId: String, signedAt: Int) throws -> String {
+        try ensureSdkKeyPair()
+        guard let privateKey = sdkPrivateKey() else {
+            throw HashamMobileError.keyGenerationFailed("No SDK EC key")
+        }
+        let payload = "device:\(deviceId):op:\(signedAt)".data(using: .utf8)!
+        return try buildCompactJws(payload: payload) { signingInput in
+            var cfError: Unmanaged<CFError>?
+            guard let derSig = SecKeyCreateSignature(
+                privateKey,
+                .ecdsaSignatureMessageX962SHA256,
+                signingInput as CFData,
+                &cfError
+            ) as Data? else {
+                throw HashamMobileError.keyGenerationFailed(
+                    cfError?.takeRetainedValue().localizedDescription ?? "EC sign failed"
+                )
+            }
+            return try derToRawEcdsa(derSig)
+        }
+    }
+
+    /// Signs `device:{deviceId}:op:{signedAt}` with the device RSA-2048 Keychain private key
+    /// (PKCS#1 v1.5 SHA-256) and returns the signature as a Base64 string.
+    /// IAM's POST /mobile/devices/:deviceId/token verifies this to prove device presence.
+    func signOperation(deviceId: String, signedAt: Int) throws -> String {
+        let tag = rsaKeyTag(deviceId)
+        guard let privateKey = rsaPrivateKey(tag: tag) else {
+            throw HashamMobileError.notEnrolled
+        }
+        let payload = "device:\(deviceId):op:\(signedAt)".data(using: .utf8)!
+        var cfError: Unmanaged<CFError>?
+        guard let sigData = SecKeyCreateSignature(
+            privateKey,
+            .rsaSignatureMessagePKCS1v15SHA256,
+            payload as CFData,
+            &cfError
+        ) as Data? else {
+            throw HashamMobileError.keyGenerationFailed(
+                cfError?.takeRetainedValue().localizedDescription ?? "RSA sign failed"
+            )
+        }
+        return sigData.base64EncodedString()
+    }
+
     /// Signs `device_id:sdk_version:sdk_checksum` with the SDK EC private key and returns
     /// a compact JWS (ES256). IAM calls jose's compactVerify to validate it.
     func signSdkEnrollment(deviceId: String, sdkVersion: String, sdkChecksum: String) throws -> String {
