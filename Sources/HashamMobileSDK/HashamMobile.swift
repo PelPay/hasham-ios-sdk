@@ -278,6 +278,23 @@ public final class HashamMobile {
         }
     }
 
+    // MARK: - PAN wrapping
+
+    /// Wrap a PAN with the tenant RSA public key stored at enrollment (RSA-OAEP-SHA256).
+    ///
+    /// Use this for PIN-change operations when you collect PINs through your own UI instead
+    /// of `changePIN(from:pan:maskedPan:theme:)`. Pass the returned base64 string to your
+    /// backend alongside the PIN blocks and `sign()` result — the Card API decrypts it with
+    /// the matching private key in Vault.
+    ///
+    /// - Parameter pan: Full card PAN (digits only, 12–19 chars).
+    /// - Throws: `HashamMobileError.encryptionFailed` if no enc_public_key was returned for
+    ///   this device at enrollment (tenant must configure an enc key in IAM).
+    public func wrapPan(pan: String) throws -> String {
+        let deviceId = try storedDeviceId()
+        return try encPublicKeyManager.wrapPan(deviceId: deviceId, pan: pan)
+    }
+
     // MARK: - Device signing
 
     /// Produce a short-lived dual-signature for the IAM device-token exchange.
