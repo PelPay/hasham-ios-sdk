@@ -329,6 +329,13 @@ public final class HashamMobile {
         return workingKeyManager.hasKey(deviceId: id)
     }
 
+    /// Remove all enrollment data for this device (working key + related Keychain entries).
+    /// No-op if the device has not yet enrolled.
+    public func clearEnrollment() {
+        guard let id = try? storedDeviceId() else { return }
+        workingKeyManager.clear(deviceId: id)
+    }
+
     // MARK: - Private helpers
 
     private func storedDeviceId() throws -> String {
